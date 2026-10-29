@@ -93,28 +93,41 @@ void loop()
         }
         
         // NÚT CALIB: Đổi Profile / Giữ để Calib
+        // NÚT CALIB: Nhấn nhả nhanh để Đổi Map / Nhấn giữ dài (>600ms) để Calib
         if (digitalRead(PIN_CALIB) == LOW)
         {
             unsigned long pressTime = millis();
+            bool isLongPress = false;
+            
+            // Chờ đến khi nhả nút hoặc quá thời gian giữ
             while (digitalRead(PIN_CALIB) == LOW)
             {
                 if (millis() - pressTime > 600)
                 {
-                    digitalWrite(LED_BUILTIN, HIGH); 
-                    runAutoCalibration();
-                    digitalWrite(LED_BUILTIN, LOW);  
-                    while (digitalRead(PIN_CALIB) == LOW);
-                    return;
+                    isLongPress = true;
+                    break;
                 }
+                delay(10);
             }
-            
-            selectedMap = (selectedMap + 1) % 3;
-            // Nháy LED báo số Map (1, 2, 3)
-            for (int i = 0; i <= selectedMap; i++) {
-                digitalWrite(LED_BUILTIN, HIGH); delay(200);
-                digitalWrite(LED_BUILTIN, LOW); delay(200);
+
+            if (isLongPress)
+            {
+                digitalWrite(LED_BUILTIN, HIGH); 
+                runAutoCalibration();
+                digitalWrite(LED_BUILTIN, LOW);  
+                while (digitalRead(PIN_CALIB) == LOW);
             }
-            delay(150);
+            else
+            {
+                selectedMap = (selectedMap + 1) % 3;
+                for (int i = 0; i <= selectedMap; i++) {
+                    digitalWrite(LED_BUILTIN, HIGH); delay(180);
+                    digitalWrite(LED_BUILTIN, LOW); delay(180);
+                }
+                Serial.print(">>> DA CHUYEN SANG MAP: ");
+                Serial.println(selectedMap + 1);
+            }
+            delay(200);
         }
         
         // NÚT START: Bắt đầu chạy
