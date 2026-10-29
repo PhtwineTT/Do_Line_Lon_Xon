@@ -3,41 +3,35 @@
 
 #include <Arduino.h>
 
-// Màn hình OLED
-#define OLED_SDA -1
-#define OLED_SCL -1
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_ADDR 0x3C
+// IC MUX U24 (16 Cảm biến)
+#define MUX_S0          17
+#define MUX_S1          18
+#define MUX_S2          19
+#define MUX_S3          23
+#define MUX_SIG         36
+#define NUM_SENSORS     16
 
-// IC MUX U24 (Đọc cảm biến)
-#define MUX_S0 -1
-#define MUX_S1 -1
-#define MUX_S2 -1
-#define MUX_S3 -1
-#define MUX_SIG -1
+// ĐỘNG CƠ TRÁI (IC U27) & ENCODER L
+#define PIN_ENC_L1      21
+#define PIN_ENC_L2      22
+#define PIN_MOT_L_IN1   27
+#define PIN_MOT_L_IN2   25
 
-// Điều khiển động cơ
-#define MOT_L_IN1 -1
-#define MOT_L_IN2 -1
-#define MOT_L_PWM -1
-#define CH_PWM_L 0 
+// ĐỘNG CƠ PHẢI (IC U29) & ENCODER R
+#define PIN_ENC_R1      32
+#define PIN_ENC_R2      33
+#define PIN_MOT_R_IN1   26
+#define PIN_MOT_R_IN2   13
 
-#define MOT_R_IN1 -1 
-#define MOT_R_IN2 -1
-#define MOT_R_PWM -1
-#define CH_PWM_R 1
+// Chân Enable chung cho cả 2 IC Motor
+#define PIN_MOT_EN      16
 
 // Nút bấm
-#define PIN_CALIB -1
-#define PIN_START -1
+#define PIN_CALIB       34
+#define PIN_START       35
 
-#define NUM_SENSORS 16
+#define INVERT_SENSORS  false
 
-// Đổi thành true nếu khi test trên OLED thấy nền trắng cột cao hơn vạch đen
-#define INVERT_SENSORS false
-
-// Cấu trúc thông số của 3 bản đồ
 struct MapProfile {
     const char* name;
     float kp;
@@ -48,6 +42,12 @@ struct MapProfile {
     bool allowTurn90;
 };
 
-enum RobotState { STATE_IDLE, STATE_CALIB, STATE_RUNNING, STATE_TURN90_L, STATE_TURN90_R };
+enum RobotState { 
+    STATE_IDLE, 
+    STATE_CALIB, 
+    STATE_RUNNING, 
+    STATE_TURN90_L, 
+    STATE_TURN90_R 
+};
 
 #endif

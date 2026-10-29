@@ -1,31 +1,28 @@
 #include "sensors.h"
 
-// MUX
 int muxChannelMap[NUM_SENSORS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 int rawSensor[NUM_SENSORS];
 int minVal[NUM_SENSORS];
 int maxVal[NUM_SENSORS];
 int normSensor[NUM_SENSORS];
 
-// Trạng thái sensors
 bool isAllWhite = true;
 int leftBlackCount = 0;
 int rightBlackCount = 0;
 float currentError = 0;
 
-// Khởi tạo
 void setupSensors()
 {
     pinMode(MUX_S0, OUTPUT);
     pinMode(MUX_S1, OUTPUT);
     pinMode(MUX_S2, OUTPUT);
     pinMode(MUX_S3, OUTPUT);
+    
     resetCalibData();
     analogReadResolution(10);
     analogSetAttenuation(ADC_11db);
 }
 
-// Chọn kênh MUX
 void selectMuxChannel(int ch)
 {
     digitalWrite(MUX_S0, (ch >> 0) & 0x01);
@@ -34,7 +31,6 @@ void selectMuxChannel(int ch)
     digitalWrite(MUX_S3, (ch >> 3) & 0x01);
 }
 
-// Đọc sensors
 void readAllRawSensors()
 {
     for (int i = 0; i < NUM_SENSORS; i++)
@@ -45,7 +41,6 @@ void readAllRawSensors()
     }
 }
 
-// Hiệu chuẩn
 void resetCalibData()
 {
     for (int i = 0; i < NUM_SENSORS; i++)
@@ -71,7 +66,6 @@ void readCalibratedSensors()
     }
 }
 
-// Phân tích dữ liệu
 void analyzeLine()
 {
     readCalibratedSensors();
