@@ -4,11 +4,12 @@
 #include "sensors.h"
 #include "motors.h"
 #include "display.h"
+#include "web_tuning.h"
 #define LED_BUILTIN 2
 
 MapProfile profiles[3] = {
     {"MAP 1", 0.024f, 0.165f, 195, 0.011f, true, true},
-    {"MAP 2", 0.031f, 0.230f, 175, 0.015f, false, true},
+    {"MAP 2", 0.031f, 0.230f, 225, 0.015f, true, true},
     {"MAP 3", 0.022f, 0.155f, 210, 0.012f, true, true}};
 int selectedMap = 0;
 
@@ -67,13 +68,14 @@ void computePDAndDrive()
 void setup()
 {
     Serial.begin(115200);
-    WiFi.mode(WIFI_OFF);
+    setupWebTuning();
 
     setupSensors();
     setupMotors();
     setupDisplay();
 
-    pinMode(PIN_CALIB, INPUT_PULLUP);
+    // SỬA: Chân 34 không có INPUT_PULLUP nội bộ, dùng INPUT vì đã có trở ngoài R4
+    pinMode(PIN_CALIB, INPUT);
     pinMode(PIN_START, INPUT_PULLUP);
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -83,6 +85,7 @@ void loop()
 {
     if (state == STATE_IDLE)
     {
+        handleWebTuning();
         setMotors(0, 0);
         analyzeLine();
 
@@ -92,60 +95,68 @@ void loop()
             updateOledDashboard(selectedMap, profiles, currentError, leftBlackCount, rightBlackCount);
         }
         
-        // NÚT CALIB: Đổi Profile / Giữ để Calib
         // NÚT CALIB: Nhấn nhả nhanh để Đổi Map / Nhấn giữ dài (>600ms) để Calib
         if (digitalRead(PIN_CALIB) == LOW)
         {
-            unsigned long pressTime = millis();
-            bool isLongPress = false;
-            
-            // Chờ đến khi nhả nút hoặc quá thời gian giữ
-            while (digitalRead(PIN_CALIB) == LOW)
+            delay(20); // THÊM: Chống nảy phím (Debounce 20ms) thay thế cho tụ C8 đã tháo
+            if (digitalRead(PIN_CALIB) == LOW)
             {
-                if (millis() - pressTime > 600)
+                Serial.println(">>> MACH DA NHAN DUOC TIN HIEU BAM NUT!");
+                unsigned long pressTime = millis();
+                bool isLongPress = false;
+                
+                // Chờ đến khi nhả nút hoặc quá thời gian giữ
+                while (digitalRead(PIN_CALIB) == LOW)
                 {
-                    isLongPress = true;
-                    break;
+                    if (millis() - pressTime > 600)
+                    {
+                        isLongPress = true;
+                        break;
+                    }
+                    delay(10);
                 }
-                delay(10);
-            }
 
-            if (isLongPress)
-            {
-                digitalWrite(LED_BUILTIN, HIGH); 
-                runAutoCalibration();
-                digitalWrite(LED_BUILTIN, LOW);  
-                while (digitalRead(PIN_CALIB) == LOW);
-            }
-            else
-            {
-                selectedMap = (selectedMap + 1) % 3;
-                for (int i = 0; i <= selectedMap; i++) {
-                    digitalWrite(LED_BUILTIN, HIGH); delay(180);
-                    digitalWrite(LED_BUILTIN, LOW); delay(180);
+                if (isLongPress)
+                {
+                    digitalWrite(LED_BUILTIN, HIGH); 
+                    runAutoCalibration();
+                    digitalWrite(LED_BUILTIN, LOW);  
+                    while (digitalRead(PIN_CALIB) == LOW);
                 }
-                Serial.print(">>> DA CHUYEN SANG MAP: ");
-                Serial.println(selectedMap + 1);
+                else
+                {
+                    selectedMap = (selectedMap + 1) % 3;
+                    for (int i = 0; i <= selectedMap; i++) {
+                        digitalWrite(LED_BUILTIN, HIGH); delay(180);
+                        digitalWrite(LED_BUILTIN, LOW); delay(180);
+                    }
+                    Serial.print(">>> DA CHUYEN SANG MAP: ");
+                    Serial.println(selectedMap + 1);
+                }
+                delay(200); // Chống dội lặp lệnh khi nhả nút
             }
-            delay(200);
         }
         
         // NÚT START: Bắt đầu chạy
         if (digitalRead(PIN_START) == LOW)
         {
-            Serial.println("READY...");
-            // Nháy LED nhanh 3 lần báo hiệu sẵn sàng
-            for(int i=0; i<3; i++) {
-                digitalWrite(LED_BUILTIN, HIGH); delay(100);
-                digitalWrite(LED_BUILTIN, LOW); delay(100);
+            delay(20); // Debounce nút START
+            if (digitalRead(PIN_START) == LOW)
+            {
+                Serial.println("READY...");
+                // Nháy LED nhanh 3 lần báo hiệu sẵn sàng
+                for(int i=0; i<3; i++) {
+                    digitalWrite(LED_BUILTIN, HIGH); delay(100);
+                    digitalWrite(LED_BUILTIN, LOW); delay(100);
+                }
+                delay(700); 
+                Serial.println("RUNNING!");
+                
+                analyzeLine();
+                resetControllerState();
+                lastControlTick = micros();
+                state = STATE_RUNNING;
             }
-            delay(700); 
-            Serial.println("RUNNING!");
-            
-            analyzeLine();
-            resetControllerState();
-            lastControlTick = micros();
-            state = STATE_RUNNING;
         }
         return;
     }

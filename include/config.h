@@ -14,14 +14,14 @@
 // ĐỘNG CƠ TRÁI (IC U27) & ENCODER L
 #define PIN_ENC_L1      21
 #define PIN_ENC_L2      22
-#define PIN_MOT_L_IN1   27
-#define PIN_MOT_L_IN2   25
+#define PIN_MOT_L_IN1   25
+#define PIN_MOT_L_IN2   26
 
 // ĐỘNG CƠ PHẢI (IC U29) & ENCODER R
 #define PIN_ENC_R1      32
 #define PIN_ENC_R2      33
-#define PIN_MOT_R_IN1   26
-#define PIN_MOT_R_IN2   13
+#define PIN_MOT_R_IN1   13
+#define PIN_MOT_R_IN2   27
 
 // Chân Enable chung cho cả 2 IC Motor
 #define PIN_MOT_EN      16
