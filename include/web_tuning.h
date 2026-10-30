@@ -3,10 +3,12 @@
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <Preferences.h>
 #include "config.h"
 
 extern MapProfile profiles[3];
 extern int selectedMap;
+extern Preferences pref; 
 
 extern void triggerStart();
 extern void triggerStop();
@@ -48,7 +50,6 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 </head>
 <body>
     <div class="container">
-        <!-- ĐIỀU KHIỂN LEVER -->
         <div class="box">
             <div class="box-title">Lệnh nhanh</div>
             <div class="btn-grid">
@@ -58,7 +59,6 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
             <button class="btn-calib" onclick="sendCmd('/calib')">CALIB CẢM BIẾN</button>
         </div>
 
-        <!-- TUNING PROFILE -->
         <div class="box">
             <div class="box-title">Thông số PID</div>
             <div class="row">
@@ -98,6 +98,30 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+void saveProfilesToFlash() {
+    pref.begin("line_p", false);
+    for (int i = 0; i < 3; i++) {
+        String p = "m" + String(i);
+        pref.putFloat((p + "kp").c_str(), profiles[i].kp);
+        pref.putFloat((p + "kd").c_str(), profiles[i].kd);
+        pref.putInt((p + "sp").c_str(), profiles[i].maxBaseSpeed);
+        pref.putFloat((p + "ks").c_str(), profiles[i].kSlow);
+    }
+    pref.end();
+}
+
+void loadProfilesFromFlash() {
+    pref.begin("line_p", true);
+    for (int i = 0; i < 3; i++) {
+        String p = "m" + String(i);
+        profiles[i].kp = pref.getFloat((p + "kp").c_str(), profiles[i].kp);
+        profiles[i].kd = pref.getFloat((p + "kd").c_str(), profiles[i].kd);
+        profiles[i].maxBaseSpeed = pref.getInt((p + "sp").c_str(), profiles[i].maxBaseSpeed);
+        profiles[i].kSlow = pref.getFloat((p + "ks").c_str(), profiles[i].kSlow);
+    }
+    pref.end();
+}
+
 void handleRoot() { server.send(200, "text/html", HTML_PAGE); }
 
 void handleSet() {
@@ -109,6 +133,8 @@ void handleSet() {
             if (server.hasArg("kd")) profiles[m].kd = server.arg("kd").toFloat();
             if (server.hasArg("sp")) profiles[m].maxBaseSpeed = server.arg("sp").toInt();
             if (server.hasArg("ks")) profiles[m].kSlow = server.arg("ks").toFloat();
+
+            saveProfilesToFlash();
 
             server.send(200, "text/plain", "[OK] Map " + String(m + 1) + " Saved");
             return;

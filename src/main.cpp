@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h> 
 #include "config.h"
 #include "sensors.h"
 #include "motors.h"
 #include "display.h"
-#include "web_tuning.h"
+#include "web_tuning.h" 
 #define LED_BUILTIN 2
 
 MapProfile profiles[3] = {
@@ -12,6 +13,7 @@ MapProfile profiles[3] = {
     {"MAP 2", 0.031f, 0.230f, 225, 0.015f, true, true},
     {"MAP 3", 0.022f, 0.155f, 210, 0.012f, true, true}};
 int selectedMap = 0;
+Preferences pref; 
 
 RobotState state = STATE_IDLE;
 float lastError = 0;
@@ -20,6 +22,22 @@ int straightCount = 0;
 unsigned long lastControlTick = 0;
 unsigned long lastOledTick = 0;
 unsigned long turnStartTime = 0;
+
+void triggerStart() {
+    state = STATE_RUNNING;
+    Serial.println(">>> WEB CMD: XE BAT DAU CHAY");
+}
+
+void triggerStop() {
+    state = STATE_IDLE;
+    setMotors(0, 0); 
+    Serial.println(">>> WEB CMD: XE DUNG LAI");
+}
+
+void triggerCalib() {
+    state = STATE_CALIB; 
+    Serial.println(">>> WEB CMD: BAT DAU CALIB SENSOR");
+}
 
 void resetControllerState()
 {
@@ -68,24 +86,42 @@ void computePDAndDrive()
 void setup()
 {
     Serial.begin(115200);
-    setupWebTuning();
 
+    pinMode(PIN_START, INPUT_PULLUP);
+    pinMode(PIN_CALIB, INPUT); 
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+
+    delay(100); 
+
+    if (digitalRead(PIN_START) == LOW) {
+        setupWebTuning(); 
+        Serial.println(">>> MODE: WEB TUNING (WIFI ON)");
+        
+        while(digitalRead(PIN_START) == LOW) {
+            delay(100);
+        }
+        Serial.println("Da tha nut START, xe cho lenh.");
+    } 
+    else {
+        WiFi.mode(WIFI_OFF);
+        Serial.println(">>> MODE: COMPETITION (WIFI OFF)");
+    }
+
+    loadProfilesFromFlash(); 
     setupSensors();
     setupMotors();
     setupDisplay();
-
-    // SỬA: Chân 34 không có INPUT_PULLUP nội bộ, dùng INPUT vì đã có trở ngoài R4
-    pinMode(PIN_CALIB, INPUT);
-    pinMode(PIN_START, INPUT_PULLUP);
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
 }
 
 void loop()
 {
+    if (WiFi.getMode() != WIFI_OFF) {
+        handleWebTuning();
+    }
+
     if (state == STATE_IDLE)
     {
-        handleWebTuning();
         setMotors(0, 0);
         analyzeLine();
 
@@ -95,17 +131,15 @@ void loop()
             updateOledDashboard(selectedMap, profiles, currentError, leftBlackCount, rightBlackCount);
         }
         
-        // NÚT CALIB: Nhấn nhả nhanh để Đổi Map / Nhấn giữ dài (>600ms) để Calib
         if (digitalRead(PIN_CALIB) == LOW)
         {
-            delay(20); // THÊM: Chống nảy phím (Debounce 20ms) thay thế cho tụ C8 đã tháo
+            delay(20); 
             if (digitalRead(PIN_CALIB) == LOW)
             {
                 Serial.println(">>> MACH DA NHAN DUOC TIN HIEU BAM NUT!");
                 unsigned long pressTime = millis();
                 bool isLongPress = false;
                 
-                // Chờ đến khi nhả nút hoặc quá thời gian giữ
                 while (digitalRead(PIN_CALIB) == LOW)
                 {
                     if (millis() - pressTime > 600)
@@ -133,18 +167,16 @@ void loop()
                     Serial.print(">>> DA CHUYEN SANG MAP: ");
                     Serial.println(selectedMap + 1);
                 }
-                delay(200); // Chống dội lặp lệnh khi nhả nút
+                delay(200);
             }
         }
         
-        // NÚT START: Bắt đầu chạy
         if (digitalRead(PIN_START) == LOW)
         {
-            delay(20); // Debounce nút START
+            delay(20);
             if (digitalRead(PIN_START) == LOW)
             {
                 Serial.println("READY...");
-                // Nháy LED nhanh 3 lần báo hiệu sẵn sàng
                 for(int i=0; i<3; i++) {
                     digitalWrite(LED_BUILTIN, HIGH); delay(100);
                     digitalWrite(LED_BUILTIN, LOW); delay(100);
@@ -161,7 +193,6 @@ void loop()
         return;
     }
     
-    // Đang chạy: Nhấn lại nút START để dừng
     if (digitalRead(PIN_START) == LOW)
     {
         setMotors(0, 0);
